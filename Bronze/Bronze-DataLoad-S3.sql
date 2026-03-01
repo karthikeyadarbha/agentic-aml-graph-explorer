@@ -1,0 +1,56 @@
+USE DATABASE KYC_AML_DB;
+USE SCHEMA BRONZE;
+
+-- 1. Reset to the 5 core columns your script generates
+CREATE OR REPLACE TABLE RAW_CUSTOMER_PROFILES (
+    CUSTOMER_ID STRING,
+    ENTITY_NAME STRING,
+    JURISDICTION STRING,
+    ENTITY_TYPE STRING,
+    BENEFICIAL_OWNERS VARIANT
+);
+
+-- 2. Load using the 'Flexible' flags
+COPY INTO RAW_CUSTOMER_PROFILES 
+FROM @S3_AML_STAGE/kyc-raw/ 
+FILE_FORMAT = (
+    TYPE = 'CSV' 
+    SKIP_HEADER = 1 
+    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+    -- This is the "magic" flag to stop the column count error
+    ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE 
+)
+FORCE = TRUE;
+
+
+SELECT 
+    (SELECT COUNT(*) FROM RAW_CUSTOMER_PROFILES) as kyc_count,
+    (SELECT COUNT(*) FROM RAW_TRANSACTIONS) as tx_count;
+
+-- 1. Create the Raw Table
+CREATE OR REPLACE TABLE RAW_TRANSACTIONS (
+    TX_ID STRING,
+    SENDER_ID STRING,
+    RECEIVER_ID STRING,
+    AMOUNT FLOAT,
+    CURRENCY STRING,
+    TX_TIMESTAMP STRING -- Loaded as string first to ensure zero errors, casted in Silver
+);
+
+-- 2. Load the data from S3
+COPY INTO RAW_TRANSACTIONS 
+FROM @S3_AML_STAGE/tx-logs/ 
+FILE_FORMAT = (
+    TYPE = 'CSV' 
+    SKIP_HEADER = 1 
+    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+    ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE
+)
+FORCE = TRUE;
+
+
+SELECT 
+    'KYC PROFILES' as dataset, COUNT(*) as record_count FROM KYC_AML_DB.BRONZE.RAW_CUSTOMER_PROFILES
+UNION ALL
+SELECT 
+    'TRANSACTIONS' as dataset, COUNT(*) as record_count FROM KYC_AML_DB.BRONZE.RAW_TRANSACTIONS;
