@@ -1,0 +1,18 @@
+USE ROLE ACCOUNTADMIN;
+USE DATABASE KYC_AML_DB;
+USE SCHEMA GOLD;
+
+
+CREATE OR REPLACE CORTEX SEARCH SERVICE aml_hybrid_search
+  -- 1. Term-Based (Keyword) Indexing
+  TEXT INDEXES (ENTITY_NAME, JURISDICTION, ENTITY_TYPE)
+  
+  -- 2. Embedding-Based (Vector) Indexing
+  VECTOR INDEXES (PRIMARY_OWNER (model='snowflake-arctic-embed-m-v1.5'))
+  
+  ATTRIBUTES (CUSTOMER_ID, ENTITY_TYPE)
+  WAREHOUSE = 'COMPUTE_WH'
+  TARGET_LAG = '1 hour'
+  AS (
+    SELECT * FROM SILVER.STG_KYC
+  );

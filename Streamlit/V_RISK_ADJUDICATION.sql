@@ -1,0 +1,20 @@
+USE ROLE ACCOUNTADMIN;
+USE DATABASE KYC_AML_DB;
+USE SCHEMA GOLD;
+
+CREATE OR REPLACE VIEW GOLD.V_RISK_ADJUDICATION AS
+SELECT 
+    *,
+    -- The "Architect's Formula" for Risk
+    (
+        CASE 
+            WHEN TOTAL_VOLUME > 50000 THEN 5 -- High Volume Weight
+            WHEN TOTAL_VOLUME > 10000 THEN 3 
+            ELSE 1 
+        END +
+        CASE 
+            WHEN INTERMEDIARY_1 = INTERMEDIARY_2 THEN 5 -- Structural Anomaly Weight
+            ELSE 2 
+        END
+    ) AS CALCULATED_RISK_SCORE
+FROM GOLD.AGENT_CONTEXT_CIRCULAR_LOOPS;
